@@ -26,6 +26,9 @@ import (
 
 type ICurrencyRate interface {
 	checkUpdate() error
+	CurrencyMap() map[string]float64
+	Status() bool // 当前接口状态
+	Rate(base string, target string) (float64, error)
 }
 
 ////////////////////
@@ -35,6 +38,7 @@ type ICurrencyRate interface {
 ////////////////////
 type cnBankAPI struct {
 	url          string
+	status       bool
 	currencyBase string
 	currencyMap  map[string]float64
 	preupdate    time.Time
@@ -53,11 +57,20 @@ func NewCnBankAPI() (*cnBankAPI, error) {
 	return api, nil
 }
 
+func (a *cnBankAPI) Status() bool {
+	return a.status
+}
+
+func (a *cnBankAPI) CurrencyMap() map[string]float64 {
+	return a.currencyMap
+}
+
 func (a *cnBankAPI) checkUpdate() error {
 	if !time.Now().After(a.preupdate.Add(time.Hour)) {
 		return nil
 	}
 
+	a.status = false
 	var url string
 
 	// 最多十页 毕竟没有那么多国家
@@ -84,6 +97,7 @@ func (a *cnBankAPI) checkUpdate() error {
 		resp.Body.Close()
 	}
 	a.preupdate = time.Now()
+	a.status = true
 	return nil
 }
 
@@ -113,12 +127,29 @@ func (a *cnBankAPI) parseRate(body io.ReadCloser) error {
 	return nil
 }
 
+func (a *cnBankAPI) Rate(base string, target string) (float64, error) {
+	if err := a.checkUpdate(); err != nil {
+		return 0, err
+	}
+
+	val1, ok := a.currencyMap[base]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	val2, ok := a.currencyMap[target]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	return val2 / val1, nil
+}
+
 ////////////////////
 // 欧洲银行
 // base eur
 ////////////////////
 type europeBankAPI struct {
 	url         string
+	status      bool
 	preupdate   time.Time
 	currencyMap map[string]float64
 	rateData    *europeRateRes
@@ -161,11 +192,20 @@ func NewEuropeBankAPI() (*europeBankAPI, error) {
 	return api, nil
 }
 
+func (a *europeBankAPI) Status() bool {
+	return a.status
+}
+
+func (a *europeBankAPI) CurrencyMap() map[string]float64 {
+	return a.currencyMap
+}
+
 func (a *europeBankAPI) checkUpdate() error {
 	if !time.Now().After(a.preupdate.Add(time.Hour)) {
 		return nil
 	}
 
+	a.status = false
 	req, err := http.NewRequest("GET", a.url, nil)
 	if err != nil {
 		return err
@@ -184,6 +224,7 @@ func (a *europeBankAPI) checkUpdate() error {
 	}
 
 	a.preupdate = time.Now()
+	a.status = true
 	return nil
 }
 
@@ -207,12 +248,28 @@ func (a *europeBankAPI) parseRate(body []byte) error {
 	return nil
 }
 
+func (a *europeBankAPI) Rate(base string, target string) (float64, error) {
+	if err := a.checkUpdate(); err != nil {
+		return 0, err
+	}
+
+	val1, ok := a.currencyMap[base]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	val2, ok := a.currencyMap[target]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	return val2 / val1, nil
+}
+
 ////////////////////
 // 美国银行
 ////////////////////
 type americaBankAPI struct {
-	url string
-
+	url       string
+	status    bool
 	preupdate time.Time
 
 	rateData    *americaRes
@@ -258,11 +315,20 @@ func NewAmericaBankAPI() (*americaBankAPI, error) {
 	return api, nil
 }
 
+func (a *americaBankAPI) Status() bool {
+	return a.status
+}
+
+func (a *americaBankAPI) CurrencyMap() map[string]float64 {
+	return a.currencyMap
+}
+
 func (a *americaBankAPI) checkUpdate() error {
 	if !time.Now().After(a.preupdate.Add(time.Hour)) {
 		return nil
 	}
 
+	a.status = false
 	req, err := http.NewRequest("GET", a.url+fmt.Sprint(time.Now().UnixMicro()), nil)
 	if err != nil {
 		return err
@@ -280,6 +346,7 @@ func (a *americaBankAPI) checkUpdate() error {
 		return err
 	}
 	a.preupdate = time.Now()
+	a.status = true
 	return nil
 }
 
@@ -299,11 +366,28 @@ func (a *americaBankAPI) parseRate(body []byte) error {
 	return nil
 }
 
+func (a *americaBankAPI) Rate(base string, target string) (float64, error) {
+	if err := a.checkUpdate(); err != nil {
+		return 0, err
+	}
+
+	val1, ok := a.currencyMap[base]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	val2, ok := a.currencyMap[target]
+	if !ok {
+		return 0, errors.New("未找到" + base + "数据")
+	}
+	return val2 / val1, nil
+}
+
 // 一个小时请求一次
 // base usd
 type xeRateAPI struct {
-	url  string
-	auth string
+	url    string
+	auth   string
+	status bool
 
 	currencyBase string // 基础币种
 	currencyMap  map[string]float64
@@ -326,11 +410,16 @@ func NewxEAPI(auth string) (*xeRateAPI, error) {
 
 }
 
+func (a *xeRateAPI) Status() bool {
+	return a.status
+}
+
 func (a *xeRateAPI) checkUpdate() error {
 	if !time.Now().After(a.preupdate.Add(time.Hour)) {
 		return nil
 	}
 
+	a.status = false
 	req, err := http.NewRequest("GET", a.url, nil)
 	if err != nil {
 		return err
@@ -352,6 +441,7 @@ func (a *xeRateAPI) checkUpdate() error {
 	}
 
 	a.preupdate = time.Now()
+	a.status = true
 	return nil
 }
 

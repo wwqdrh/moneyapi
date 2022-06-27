@@ -33,4 +33,40 @@
 
 ```go
 import "github.com/wwqdrh/moneyapi"
+
+func main() {
+  // 币种转换
+  api := NewMoneyAPI()
+	target := []string{
+		"CNY", "USD", "JPY", "BGN", "CZK", "DKK", "GBP",
+		"HUF", "PLN", "RON", "SEK", "CHF", "ISK",
+		"NOK", "HRK", "TRY", "AUD", "BRL", "CAD",
+		"CNY", "HKD", "IDR", "INR", "KRW", "MXN",
+		"MYR", "NZD", "PHP", "SGD", "THB", "ZAR",
+	}
+	for j := 0; j < len(target); j++ {
+		for i := 0; i < j; i++ {
+			fmt.Printf("%s -> %s: %.4f\n", target[i], target[j], api.Rate(target[i], target[j]))
+		}
+	}
+
+  // 谁使用这个币
+  target := []string{
+		"USD", "JPY", "BGN", "CZK", "DKK", "GBP",
+		"HUF", "PLN", "RON", "SEK", "CHF", "ISK",
+		"NOK", "HRK", "TRY", "AUD", "BRL", "CAD",
+		"CNY", "HKD", "IDR", "INR", "KRW", "MXN",
+		"MYR", "NZD", "PHP", "SGD", "THB", "ZAR",
+	}
+	for _, item := range target {
+		items, err := api.RelativeItem(item)
+		if err != nil {
+			t.Error(err)
+		} else {
+			fmt.Println(items)
+		}
+	}
+
+  // ...
+}
 ```

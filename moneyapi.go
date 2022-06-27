@@ -1,123 +1,114 @@
 package moneyapi
 
-import (
-	_ "embed"
-	"encoding/json"
+import "github.com/wwqdrh/logger"
 
-	"github.com/wwqdrh/logger"
-)
+// graph base on bank rate info
+type MoneyAPI struct {
+	cnRateAPI ICurrencyRate
+	europAPI  ICurrencyRate
+	amerAPI   ICurrencyRate
 
-//go:embed convert.json
-var convert []byte
-
-var (
-	ConvertInfo        convertInfo
-	flagNameMap        = map[string][]string{} // 标识转[中文，英文]
-	nameFlagMap        = map[string]string{}   // 中文，英文 转标识
-	currencyCNRelatMap = map[string][]string{}
-	currencyENRelatMap = map[string][]string{}
-	countryRelatMap    = map[string]string{}
-	currencyFlagMap    = map[string]string{}
-)
-
-type convertInfo struct {
-	Currencies struct {
-		Zh map[string]struct {
-			Name         string   `json:"name"`
-			RelatedTerms []string `json:"relatedTerms"`
-			NamePlural   string   `json:"name_plural"`
-		} `json:"zh-CN"`
-		En map[string]struct {
-			Name         string   `json:"name"`
-			RelatedTerms []string `json:"relatedTerms"`
-			NamePlural   string   `json:"name_plural"`
-		} `json:"en"`
-	} `json:"currencies"`
-	Countries struct {
-		Zh map[string]struct {
-			Name string `json:"name"`
-		} `json:"zh-CN"`
-		En map[string]struct {
-			Name string `json:"name"`
-		} `json:"en"`
-	} `json:"countries"`
+	// 有向带权图
+	graph map[string]map[string]float64
 }
 
-func init() {
-	if err := json.Unmarshal(convert, &ConvertInfo); err != nil {
-		logger.DefaultLogger.Fatal(err.Error())
+func NewMoneyAPI() *MoneyAPI {
+	api := &MoneyAPI{
+		graph: map[string]map[string]float64{
+			"CNY": {},
+			"USD": {},
+			"EUR": {},
+		},
+	}
+	api.Update()
+	return api
+}
+
+func (a *MoneyAPI) Update() {
+	if a.cnRateAPI == nil || !a.cnRateAPI.Status() {
+		cnRate, err := NewCnBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.cnRateAPI = cnRate
 	}
 
-	// 标识转中文英文
-	// 英文、中文转标识
-	for key, item := range ConvertInfo.Countries.Zh {
-		flagNameMap[key] = append(flagNameMap[key], item.Name)
-		nameFlagMap[item.Name] = key
-	}
-	for key, item := range ConvertInfo.Countries.En {
-		flagNameMap[key] = append(flagNameMap[key], item.Name)
-		nameFlagMap[item.Name] = key
+	if a.europAPI == nil || !a.europAPI.Status() {
+		europRate, err := NewEuropeBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.europAPI = europRate
 	}
 
-	// 币种的映射关系
-	// 国家使用的币种
-	for key, item := range ConvertInfo.Currencies.Zh {
-		currencyCNRelatMap[key] = item.RelatedTerms
-		currencyFlagMap[item.Name] = key
-		for _, item := range item.RelatedTerms {
-			countryRelatMap[item] = key
+	if a.amerAPI == nil || !a.amerAPI.Status() {
+		amerRate, err := NewAmericaBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.amerAPI = amerRate
+	}
+
+	for item, val := range a.cnRateAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["CNY"][item] = val
+		a.graph[item]["CNY"] = 1 / val
+	}
+
+	for item, val := range a.europAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["EUR"][item] = val
+		a.graph[item]["EUR"] = 1 / val
+	}
+
+	for item, val := range a.amerAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["USD"][item] = val
+		a.graph[item]["USD"] = 1 / val
+	}
+}
+
+// 在graph中寻找从base到target的路径
+// bfs 寻找最短路径
+// 1 base -> ? target
+func (a *MoneyAPI) Rate(base, target string) float64 {
+	type node struct {
+		Name  string
+		Value float64 // 从1base到这个节点所等价的价值
+	}
+
+	root := &node{base, 1}
+	visit := map[*node]bool{root: true}
+	queue := []*node{root}
+	for len(queue) > 0 {
+		length := len(queue)
+		for i := 0; i < length; i++ {
+			cur := queue[0]
+			queue = queue[1:]
+
+			for next, val := range a.graph[cur.Name] {
+				// 1 cur = val next
+				nextNode := &node{
+					next, val * cur.Value,
+				}
+				if next == target {
+					return nextNode.Value
+				}
+
+				if _, ok := visit[nextNode]; ok {
+					continue
+				}
+
+				queue = append(queue, nextNode)
+				visit[nextNode] = true
+			}
 		}
 	}
-	for key, item := range ConvertInfo.Currencies.En {
-		currencyENRelatMap[key] = item.RelatedTerms
-		for _, item := range item.RelatedTerms {
-			countryRelatMap[item] = key
-		}
-	}
-
-}
-
-// 标识转国家名
-func CountryName(name string) []string {
-	return flagNameMap[name]
-}
-
-// 国家名转标识
-func CountryEnName(name string) string {
-	return nameFlagMap[name]
-}
-
-// 获取使用币种的国家
-// 0 中文
-// 1 英文
-func Currency2Country(name string, flag uint) []string {
-	if flag != 0 && flag != 1 {
-		return nil
-	}
-
-	var res []string
-	if flag == 0 {
-		res = currencyCNRelatMap[name]
-	} else if flag == 1 {
-		res = currencyENRelatMap[name]
-	}
-	new := res[:0]
-	for _, item := range res {
-		if _, ok := nameFlagMap[item]; ok {
-			new = append(new, item)
-		}
-	}
-	return new
-}
-
-func Country2Currency(name string) string {
-	return countryRelatMap[name]
-}
-
-func Currency2Flag(name string) string {
-	val := currencyFlagMap[name]
-	if val == "" {
-		return "N/A"
-	}
-	return val
+	return -1
 }

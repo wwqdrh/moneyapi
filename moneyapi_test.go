@@ -5,18 +5,18 @@ import (
 	"testing"
 )
 
-func TestCountryName(t *testing.T) {
+func TestMoneyAPI(t *testing.T) {
+	api := NewMoneyAPI()
 	target := []string{
-		"USD", "JPY", "BGN", "CZK", "DKK", "GBP",
+		"CNY", "USD", "JPY", "BGN", "CZK", "DKK", "GBP",
 		"HUF", "PLN", "RON", "SEK", "CHF", "ISK",
 		"NOK", "HRK", "TRY", "AUD", "BRL", "CAD",
 		"CNY", "HKD", "IDR", "INR", "KRW", "MXN",
 		"MYR", "NZD", "PHP", "SGD", "THB", "ZAR",
 	}
-	for _, item := range target {
-		t := Currency2Country(item, 0)
-		fmt.Println(t)
-		fmt.Println(Currency2Country(item, 1))
-		fmt.Println(Country2Currency(t[0]))
+	for j := 0; j < len(target); j++ {
+		for i := 0; i < j; i++ {
+			fmt.Printf("%s -> %s: %.4f\n", target[i], target[j], api.Rate(target[i], target[j]))
+		}
 	}
 }
