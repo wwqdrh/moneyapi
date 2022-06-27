@@ -5,6 +5,36 @@ import (
 	"testing"
 )
 
+func TestCnBankRate(t *testing.T) {
+	api, err := NewCnBankAPI()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range api.currencyMap {
+		fmt.Printf("%s %.4f\n", key, value)
+	}
+}
+
+func TestAmericaBankRate(t *testing.T) {
+	api, err := NewAmericaBankAPI()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range api.currencyMap {
+		fmt.Printf("%s %.4f\n", key, value)
+	}
+}
+
+func TestEuropeBankRate(t *testing.T) {
+	api, err := NewEuropeBankAPI()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range api.currencyMap {
+		fmt.Printf("%s %.4f\n", key, value)
+	}
+}
+
 func TestXEMoneyAPI(t *testing.T) {
 	api, err := NewxEAPI("Basic bG9kZXN0YXI6d2FHTDVTUXE2alQ1T0hRelVlS0pwSXNpNm1YcXQyWno=")
 	if err != nil {
