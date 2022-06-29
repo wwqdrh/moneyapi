@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/wwqdrh/logger v0.0.0-20220629083503-f47c3590f50d
+	github.com/wwqdrh/logger v0.0.0-20220629085142-1e491a365523
 )
 
 require (
