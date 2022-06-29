@@ -4,13 +4,11 @@ go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
-	github.com/wwqdrh/logger v0.0.0-20220626055221-765e09c1dfe5
+	github.com/wwqdrh/logger v0.0.0-20220629083503-f47c3590f50d
 )
 
 require (
-	github.com/BurntSushi/toml v1.1.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
-	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869 // indirect
 	github.com/fluent/fluent-logger-golang v1.9.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible // indirect
 	github.com/philhofer/fwd v1.1.1 // indirect
