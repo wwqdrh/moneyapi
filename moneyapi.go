@@ -80,11 +80,11 @@ func (a *MoneyAPI) Update() {
 func (a *MoneyAPI) Rate(base, target string) float64 {
 	type node struct {
 		Name  string
-		Value float64 // 从1base到这个节点所等价的价值
+		Value float64 // 从1base到这个节点所等价的价值 但是这个浮点型导致如果直接使用*node在比较的时候会失败
 	}
 
 	root := &node{base, 1}
-	visit := map[*node]bool{root: true}
+	visit := map[string]*node{root.Name: root}
 	queue := []*node{root}
 	for len(queue) > 0 {
 		length := len(queue)
@@ -101,12 +101,12 @@ func (a *MoneyAPI) Rate(base, target string) float64 {
 					return nextNode.Value
 				}
 
-				if _, ok := visit[nextNode]; ok {
+				if _, ok := visit[nextNode.Name]; ok {
 					continue
 				}
 
 				queue = append(queue, nextNode)
-				visit[nextNode] = true
+				visit[nextNode.Name] = nextNode
 			}
 		}
 	}

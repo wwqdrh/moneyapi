@@ -20,3 +20,15 @@ func TestMoneyAPI(t *testing.T) {
 		}
 	}
 }
+
+func TestMoneyAPI2(t *testing.T) {
+	api := NewMoneyAPI()
+	target := []string{
+		"CYN", "USD",
+	}
+	for j := 0; j < len(target); j++ {
+		for i := 0; i < j; i++ {
+			fmt.Printf("%s -> %s: %.4f\n", target[i], target[j], api.Rate(target[i], target[j]))
+		}
+	}
+}
