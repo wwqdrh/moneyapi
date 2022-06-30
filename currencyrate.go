@@ -62,6 +62,10 @@ func (a *cnBankAPI) Status() bool {
 }
 
 func (a *cnBankAPI) CurrencyMap() map[string]float64 {
+	if err := a.checkUpdate(); err != nil {
+		logger.DefaultLogger.Warn(err.Error())
+	}
+
 	return a.currencyMap
 }
 
@@ -197,6 +201,10 @@ func (a *europeBankAPI) Status() bool {
 }
 
 func (a *europeBankAPI) CurrencyMap() map[string]float64 {
+	if err := a.checkUpdate(); err != nil {
+		logger.DefaultLogger.Warn(err.Error())
+	}
+
 	return a.currencyMap
 }
 
@@ -320,6 +328,10 @@ func (a *americaBankAPI) Status() bool {
 }
 
 func (a *americaBankAPI) CurrencyMap() map[string]float64 {
+	if err := a.checkUpdate(); err != nil {
+		logger.DefaultLogger.Warn(err.Error())
+	}
+
 	return a.currencyMap
 }
 

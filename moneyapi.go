@@ -1,6 +1,11 @@
 package moneyapi
 
-import "github.com/wwqdrh/logger"
+import (
+	"sync"
+	"time"
+
+	"github.com/wwqdrh/logger"
+)
 
 // graph base on bank rate info
 type MoneyAPI struct {
@@ -9,7 +14,8 @@ type MoneyAPI struct {
 	amerAPI   ICurrencyRate
 
 	// 有向带权图
-	graph map[string]map[string]float64
+	graph      map[string]map[string]float64
+	lastUpdate time.Time
 }
 
 func NewMoneyAPI() *MoneyAPI {
@@ -19,35 +25,51 @@ func NewMoneyAPI() *MoneyAPI {
 			"USD": {},
 			"EUR": {},
 		},
+		lastUpdate: time.Now().Add(-1 * time.Hour),
 	}
 	api.Update()
 	return api
 }
 
 func (a *MoneyAPI) Update() {
-	if a.cnRateAPI == nil || !a.cnRateAPI.Status() {
-		cnRate, err := NewCnBankAPI()
-		if err != nil {
-			logger.DefaultLogger.Warn(err.Error())
-		}
-		a.cnRateAPI = cnRate
+	if !time.Now().After(a.lastUpdate.Add(1 * time.Hour)) {
+		return
 	}
 
-	if a.europAPI == nil || !a.europAPI.Status() {
-		europRate, err := NewEuropeBankAPI()
-		if err != nil {
-			logger.DefaultLogger.Warn(err.Error())
+	wait := sync.WaitGroup{}
+	wait.Add(3)
+	go func() {
+		defer wait.Done()
+		if a.cnRateAPI == nil || !a.cnRateAPI.Status() {
+			cnRate, err := NewCnBankAPI()
+			if err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+			}
+			a.cnRateAPI = cnRate
 		}
-		a.europAPI = europRate
-	}
+	}()
+	go func() {
+		defer wait.Done()
+		if a.europAPI == nil || !a.europAPI.Status() {
+			europRate, err := NewEuropeBankAPI()
+			if err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+			}
+			a.europAPI = europRate
+		}
+	}()
 
-	if a.amerAPI == nil || !a.amerAPI.Status() {
-		amerRate, err := NewAmericaBankAPI()
-		if err != nil {
-			logger.DefaultLogger.Warn(err.Error())
+	go func() {
+		defer wait.Done()
+		if a.amerAPI == nil || !a.amerAPI.Status() {
+			amerRate, err := NewAmericaBankAPI()
+			if err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+			}
+			a.amerAPI = amerRate
 		}
-		a.amerAPI = amerRate
-	}
+	}()
+	wait.Wait()
 
 	for item, val := range a.cnRateAPI.CurrencyMap() {
 		if a.graph[item] == nil {
@@ -78,6 +100,8 @@ func (a *MoneyAPI) Update() {
 // bfs 寻找最短路径
 // 1 base -> ? target
 func (a *MoneyAPI) Rate(base, target string) float64 {
+	a.Update()
+
 	type node struct {
 		Name  string
 		Value float64 // 从1base到这个节点所等价的价值 但是这个浮点型导致如果直接使用*node在比较的时候会失败
