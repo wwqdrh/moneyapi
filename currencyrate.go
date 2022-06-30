@@ -74,35 +74,39 @@ func (a *cnBankAPI) checkUpdate() error {
 		return nil
 	}
 
-	a.status = false
-	var url string
-
-	// 最多十页 毕竟没有那么多国家
-	for i := 0; i < 10; i++ {
-		if i == 0 {
-			url = a.url + "/index.html"
-		} else {
-			url = a.url + fmt.Sprintf("/index_%d.html", i)
+	// 最多重试5次
+next:
+	for times := 0; times < 5; times += 1 {
+		a.status = false
+		var url string
+		// 最多十页 毕竟没有那么多国家
+		for i := 0; i < 10; i++ {
+			if i == 0 {
+				url = a.url + "/index.html"
+			} else {
+				url = a.url + fmt.Sprintf("/index_%d.html", i)
+			}
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+				goto next
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+				goto next
+			}
+			if err := a.parseRate(resp.Body); err != nil {
+				logger.DefaultLogger.Warn(err.Error())
+			}
+			resp.Body.Close()
 		}
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			logger.DefaultLogger.Error(err.Error())
-			continue
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			logger.DefaultLogger.Error(err.Error())
-			continue
-		}
-
-		if err := a.parseRate(resp.Body); err != nil {
-			logger.DefaultLogger.Error(err.Error())
-		}
-		resp.Body.Close()
+		a.preupdate = time.Now()
+		a.status = true
+		return nil // 成功解析
 	}
-	a.preupdate = time.Now()
-	a.status = true
-	return nil
+
+	return errors.New("重试失败5次")
 }
 
 func (a *cnBankAPI) parseRate(body io.ReadCloser) error {
@@ -213,27 +217,35 @@ func (a *europeBankAPI) checkUpdate() error {
 		return nil
 	}
 
-	a.status = false
-	req, err := http.NewRequest("GET", a.url, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := a.parseRate(body); err != nil {
-		return err
-	}
+next:
+	for times := 0; times < 5; times += 1 {
+		a.status = false
+		req, err := http.NewRequest("GET", a.url, nil)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+			goto next
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+			goto next
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+			goto next
+		}
+		if err := a.parseRate(body); err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+			goto next
+		}
 
-	a.preupdate = time.Now()
-	a.status = true
-	return nil
+		a.preupdate = time.Now()
+		a.status = true
+		return nil
+	}
+	return errors.New("重试失败5次")
 }
 
 func (a *europeBankAPI) parseRate(body []byte) error {
@@ -340,26 +352,37 @@ func (a *americaBankAPI) checkUpdate() error {
 		return nil
 	}
 
-	a.status = false
-	req, err := http.NewRequest("GET", a.url+fmt.Sprint(time.Now().UnixMicro()), nil)
-	if err != nil {
-		return err
+next:
+	for times := 0; times < 5; times += 1 {
+		a.status = false
+		req, err := http.NewRequest("GET", a.url+fmt.Sprint(time.Now().UnixMicro()), nil)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+
+			goto next
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+
+			goto next
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+
+			goto next
+		}
+		if err := a.parseRate(body); err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+			goto next
+		}
+		a.preupdate = time.Now()
+		a.status = true
+		return nil
 	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	if err := a.parseRate(body); err != nil {
-		return err
-	}
-	a.preupdate = time.Now()
-	a.status = true
-	return nil
+	return errors.New("重试失败5次")
 }
 
 func (a *americaBankAPI) parseRate(body []byte) error {

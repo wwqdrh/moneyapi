@@ -31,7 +31,7 @@ func NewMoneyAPI() *MoneyAPI {
 	return api
 }
 
-func (a *MoneyAPI) Update() {
+func (a *MoneyAPI) Update2() {
 	if !time.Now().After(a.lastUpdate.Add(1 * time.Hour)) {
 		return
 	}
@@ -70,6 +70,57 @@ func (a *MoneyAPI) Update() {
 		}
 	}()
 	wait.Wait()
+
+	for item, val := range a.cnRateAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["CNY"][item] = val
+		a.graph[item]["CNY"] = 1 / val
+	}
+
+	for item, val := range a.europAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["EUR"][item] = val
+		a.graph[item]["EUR"] = 1 / val
+	}
+
+	for item, val := range a.amerAPI.CurrencyMap() {
+		if a.graph[item] == nil {
+			a.graph[item] = map[string]float64{}
+		}
+		a.graph["USD"][item] = val
+		a.graph[item]["USD"] = 1 / val
+	}
+	a.lastUpdate = time.Now()
+}
+
+func (a *MoneyAPI) Update() {
+	if a.cnRateAPI == nil || !a.cnRateAPI.Status() {
+		cnRate, err := NewCnBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.cnRateAPI = cnRate
+	}
+
+	if a.europAPI == nil || !a.europAPI.Status() {
+		europRate, err := NewEuropeBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.europAPI = europRate
+	}
+
+	if a.amerAPI == nil || !a.amerAPI.Status() {
+		amerRate, err := NewAmericaBankAPI()
+		if err != nil {
+			logger.DefaultLogger.Warn(err.Error())
+		}
+		a.amerAPI = amerRate
+	}
 
 	for item, val := range a.cnRateAPI.CurrencyMap() {
 		if a.graph[item] == nil {
