@@ -70,15 +70,19 @@ type convertInfo struct {
 
 // 如果xeapi无法获取就使用convert.json
 func init() {
-	api, err := NewCurrencyInfo()
-	if err != nil {
-		logger.DefaultLogger.Warn(err.Error())
-		if err := json.Unmarshal(convert, &ConvertInfo); err != nil {
-			logger.DefaultLogger.Fatal(err.Error())
-		}
-	} else {
-		ConvertInfo.Countries = api.info.PageProps.CommonI18nResources.Countries
-		ConvertInfo.Currencies = api.info.PageProps.CommonI18nResources.Currencies
+	// api, err := NewCurrencyInfo()
+	// if err != nil {
+	// 	logger.DefaultLogger.Warn(err.Error())
+	// 	if err := json.Unmarshal(convert, &ConvertInfo); err != nil {
+	// 		logger.DefaultLogger.Fatal(err.Error())
+	// 	}
+	// } else {
+	// 	ConvertInfo.Countries = api.info.PageProps.CommonI18nResources.Countries
+	// 	ConvertInfo.Currencies = api.info.PageProps.CommonI18nResources.Currencies
+	// }
+
+	if err := json.Unmarshal(convert, &ConvertInfo); err != nil {
+		logger.DefaultLogger.Fatal(err.Error())
 	}
 	// 标识转中文英文
 	// 英文、中文转标识
